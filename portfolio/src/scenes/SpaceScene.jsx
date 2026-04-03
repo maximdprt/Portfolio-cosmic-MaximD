@@ -798,46 +798,9 @@ function ShipController({
     if (input.lengthSq() > 1) input.normalize()
 
     const hasInput = effectiveInputPressed
-
-    // Movement axis controlled by the ship's current orientation (not world axes).
-    // Local controls:
-    // - D/Q => local +X / -X
-    // - Space/A => local +Y / -Y
-    // - Z/S => local -Z / +Z (forward/back)
-    const rawMoveLocal = effectiveInputPressed
-      ? new THREE.Vector3(
-        (keys.d ? 1 : 0) - (keys.q ? 1 : 0),
-        (keys.space ? 1 : 0) - (keys.a ? 1 : 0),
-        (keys.z ? 1 : 0) - (keys.s ? 1 : 0),
-      )
-      : new THREE.Vector3(0, 0, 0)
-
-    if (rawMoveLocal.lengthSq() > 1) rawMoveLocal.normalize()
-
-    if (!effectiveInputPressed) {
-      moveInputSmoothedRef.current.set(0, 0, 0)
-    } else {
-      const moveSmooth = 1 - Math.exp(-(keys.shift ? 12.0 : 10.0) * frameDt)
-      moveInputSmoothedRef.current.lerp(rawMoveLocal, moveSmooth)
-    }
-
-    const moveLocal = moveInputSmoothedRef.current
-    if (moveLocal.lengthSq() > 1) moveLocal.normalize()
-
-    // Build world movement direction from local axes and current ship quaternion.
-    tmpRightWorld.set(1, 0, 0).applyQuaternion(ship.quaternion).normalize()
-    tmpUpWorld.set(0, 1, 0).applyQuaternion(ship.quaternion).normalize()
-    tmpForwardWorld.set(0, 0, -1).applyQuaternion(ship.quaternion).normalize()
-
-    tmpWorldMoveDir
-      .copy(tmpRightWorld)
-      .multiplyScalar(moveLocal.x)
-      .addScaledVector(tmpUpWorld, moveLocal.y)
-      .addScaledVector(tmpForwardWorld, moveLocal.z)
-
-    if (tmpWorldMoveDir.lengthSq() > 0.0001) tmpWorldMoveDir.normalize()
-
-    const targetVel = tmpWorldMoveDir.multiplyScalar(speed)
+    // Back to world-axis movement:
+    // Z: -Z (forward), S: +Z (back), D: +X (right), Q: -X (left), Space/A: +/-Y
+    const targetVel = input.clone().multiplyScalar(speed)
 
     // Rotation target (nose) logic:
     // - D/Q (right/left) => nose tilts toward displacement
