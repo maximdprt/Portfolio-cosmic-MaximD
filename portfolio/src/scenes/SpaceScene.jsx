@@ -994,6 +994,61 @@ function ShipController({
 
 useGLTF.preload('/dolph-1_-_light_fighter.glb')
 
+// Static ship: no keyboard, no movement, no direction logic.
+function StaticShipController({ damageRef, onShipMeshReady }) {
+  const SPAWN_Z = 800
+  const shipBodyRef = useRef(null)
+  const fighterModel = useGLTF('/dolph-1_-_light_fighter.glb')
+  const leftTrailRef = useRef(null)
+  const rightTrailRef = useRef(null)
+  const leftThrusterRef = useRef(null)
+  const rightThrusterRef = useRef(null)
+
+  useEffect(() => {
+    // Hide exhaust visuals completely unless you re-enable motion/boost logic.
+    if (leftTrailRef.current) leftTrailRef.current.visible = false
+    if (rightTrailRef.current) rightTrailRef.current.visible = false
+    if (leftThrusterRef.current) leftThrusterRef.current.visible = false
+    if (rightThrusterRef.current) rightThrusterRef.current.visible = false
+  }, [])
+
+  useEffect(() => {
+    if (onShipMeshReady && fighterModel?.scene) onShipMeshReady(fighterModel.scene)
+  }, [fighterModel, onShipMeshReady])
+
+  return (
+    <RigidBody
+      ref={shipBodyRef}
+      type="kinematicPosition"
+      colliders="ball"
+      position={[0, 0, SPAWN_Z]}
+      onCollisionEnter={() => {
+        if (!damageRef) return
+        damageRef.current = Math.min(1, damageRef.current + 0.34)
+      }}
+    >
+      <group>
+        <group rotation={[0, Math.PI, 0]} scale={0.85}>
+          <primitive object={fighterModel.scene} />
+          <Trail ref={leftTrailRef} width={0.55} length={6} color="#79eaff" attenuation={(t) => t * t}>
+            <mesh ref={leftThrusterRef} position={[-0.55, -0.1, 1.35]}>
+              <sphereGeometry args={[0.04, 8, 8]} />
+              <meshBasicMaterial color="#8cf7ff" transparent opacity={0.01} />
+            </mesh>
+          </Trail>
+          <Trail ref={rightTrailRef} width={0.55} length={6} color="#79eaff" attenuation={(t) => t * t}>
+            <mesh ref={rightThrusterRef} position={[0.55, -0.1, 1.35]}>
+              <sphereGeometry args={[0.04, 8, 8]} />
+              <meshBasicMaterial color="#8cf7ff" transparent opacity={0.01} />
+            </mesh>
+          </Trail>
+        </group>
+        <pointLight position={[0, 1.7, 2.2]} intensity={18} distance={42} color="#bcdcff" />
+      </group>
+    </RigidBody>
+  )
+}
+
 export default function SpaceScene() {
   const sunPos = useMemo(() => new THREE.Vector3(0, 0, 0), [])
   const lightPos = useMemo(() => new THREE.Vector3(0, 22, 12), [])
@@ -1194,14 +1249,7 @@ export default function SpaceScene() {
 
           <Physics gravity={[0, 0, 0]} timeStep="vary">
             {/* Player ship + keyboard controls */}
-            <ShipController
-              damageOverlayRef={damageOverlayRef}
-              damageRef={damageRef}
-              collidableMeshes={collidableMeshesRef}
-              onShipMeshReady={registerCollidableMesh}
-              controlsEnabled={!isCinematic && !overlayPlanet}
-              onTelemetry={setTelemetry}
-            />
+            <StaticShipController damageRef={damageRef} onShipMeshReady={registerCollidableMesh} />
             {planets.map((p, idx) => (
               <TexturedPlanet
                 key={`${p.name}-${idx}`}
