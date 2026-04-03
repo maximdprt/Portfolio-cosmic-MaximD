@@ -677,6 +677,7 @@ function ShipController({
   const yaw = useRef(0)
   const inputSmoothedRef = useRef(new THREE.Vector3())
   const noseDirSmoothedRef = useRef(new THREE.Vector3(0, 0, -1))
+  const moveInputSmoothedRef = useRef(new THREE.Vector3())
   const fighterModel = useGLTF('/dolph-1_-_light_fighter.glb')
   const tmpCamTarget = useMemo(() => new THREE.Vector3(), [])
   const tmpLookAt = useMemo(() => new THREE.Vector3(), [])
@@ -690,6 +691,11 @@ function ShipController({
   const tmpEuler = useMemo(() => new THREE.Euler(0, 0, 0, 'YXZ'), [])
   const tmpMoveDir = useMemo(() => new THREE.Vector3(), [])
   const tmpLocalForward = useMemo(() => new THREE.Vector3(0, 0, -1), [])
+  const tmpWorldMoveDir = useMemo(() => new THREE.Vector3(), [])
+  const tmpRightWorld = useMemo(() => new THREE.Vector3(), [])
+  const tmpUpWorld = useMemo(() => new THREE.Vector3(), [])
+  const tmpForwardWorld = useMemo(() => new THREE.Vector3(), [])
+  const tmpMoveLocal = useMemo(() => new THREE.Vector3(), [])
   const tmpRayDirLocal = useMemo(() => new THREE.Vector3(), [])
   const tmpRayDirWorld = useMemo(() => new THREE.Vector3(), [])
   const tmpInputFrontDir = useMemo(() => new THREE.Vector3(), [])
@@ -792,7 +798,46 @@ function ShipController({
     if (input.lengthSq() > 1) input.normalize()
 
     const hasInput = effectiveInputPressed
-    const targetVel = input.clone().multiplyScalar(speed)
+
+    // Movement axis controlled by the ship's current orientation (not world axes).
+    // Local controls:
+    // - D/Q => local +X / -X
+    // - Space/A => local +Y / -Y
+    // - Z/S => local -Z / +Z (forward/back)
+    const rawMoveLocal = effectiveInputPressed
+      ? new THREE.Vector3(
+        (keys.d ? 1 : 0) - (keys.q ? 1 : 0),
+        (keys.space ? 1 : 0) - (keys.a ? 1 : 0),
+        (keys.z ? 1 : 0) - (keys.s ? 1 : 0),
+      )
+      : new THREE.Vector3(0, 0, 0)
+
+    if (rawMoveLocal.lengthSq() > 1) rawMoveLocal.normalize()
+
+    if (!effectiveInputPressed) {
+      moveInputSmoothedRef.current.set(0, 0, 0)
+    } else {
+      const moveSmooth = 1 - Math.exp(-(keys.shift ? 12.0 : 10.0) * frameDt)
+      moveInputSmoothedRef.current.lerp(rawMoveLocal, moveSmooth)
+    }
+
+    const moveLocal = moveInputSmoothedRef.current
+    if (moveLocal.lengthSq() > 1) moveLocal.normalize()
+
+    // Build world movement direction from local axes and current ship quaternion.
+    tmpRightWorld.set(1, 0, 0).applyQuaternion(ship.quaternion).normalize()
+    tmpUpWorld.set(0, 1, 0).applyQuaternion(ship.quaternion).normalize()
+    tmpForwardWorld.set(0, 0, -1).applyQuaternion(ship.quaternion).normalize()
+
+    tmpWorldMoveDir
+      .copy(tmpRightWorld)
+      .multiplyScalar(moveLocal.x)
+      .addScaledVector(tmpUpWorld, moveLocal.y)
+      .addScaledVector(tmpForwardWorld, moveLocal.z)
+
+    if (tmpWorldMoveDir.lengthSq() > 0.0001) tmpWorldMoveDir.normalize()
+
+    const targetVel = tmpWorldMoveDir.multiplyScalar(speed)
 
     // Rotation target (nose) logic:
     // - D/Q (right/left) => nose tilts toward displacement
