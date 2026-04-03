@@ -46,6 +46,10 @@ const PLANET_CONTENT = {
   },
 }
 
+// World size for a closed "box" space (visual + clamp).
+const WORLD_HALF_SIZE = 2400
+const WORLD_MARGIN = 80
+
 function Starfield({ count = 22000, radius = 12000 }) {
   const geometry = useMemo(() => {
     // Deterministic-ish RNG so the scene looks the same across refreshes.
@@ -107,6 +111,64 @@ function Starfield({ count = 22000, radius = 12000 }) {
         depthWrite={false}
       />
     </points>
+  )
+}
+
+function CubeStarfield({ count = 26000, boxHalf = WORLD_HALF_SIZE }) {
+  const geometry = useMemo(() => {
+    // Deterministic-ish RNG so the scene looks the same across refreshes.
+    const rand = (() => {
+      let seed = 424242
+      return () => {
+        seed |= 0
+        seed = (seed + 0x6d2b79f5) | 0
+        let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
+        t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
+        return ((t ^ (t >>> 14)) >>> 0) / 4294967296
+      }
+    })()
+
+    const positions = new Float32Array(count * 3)
+    const colors = new Float32Array(count * 3)
+
+    for (let i = 0; i < count; i++) {
+      // Random point inside a cube => looks more like a boxed "sky".
+      const x = (rand() * 2 - 1) * boxHalf
+      const y = (rand() * 2 - 1) * boxHalf
+      const z = (rand() * 2 - 1) * boxHalf
+
+      positions[i * 3 + 0] = x
+      positions[i * 3 + 1] = y
+      positions[i * 3 + 2] = z
+
+      // Slight blue/white variety.
+      const b = 0.85 + 0.15 * rand()
+      const g = 0.85 + 0.15 * rand()
+      const r = 0.8 + 0.2 * rand()
+      colors[i * 3 + 0] = r
+      colors[i * 3 + 1] = g
+      colors[i * 3 + 2] = b
+    }
+
+    const geo = new THREE.BufferGeometry()
+    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3))
+    return geo
+  }, [count, boxHalf])
+
+  return (
+    <points geometry={geometry} frustumCulled={false}>
+      <pointsMaterial size={0.32} sizeAttenuation vertexColors transparent opacity={1} depthWrite={false} />
+    </points>
+  )
+}
+
+function SpaceCubeSkybox({ boxHalf = WORLD_HALF_SIZE }) {
+  return (
+    <mesh>
+      <boxGeometry args={[boxHalf * 2, boxHalf * 2, boxHalf * 2]} />
+      <meshBasicMaterial color="#020308" side={THREE.BackSide} depthWrite={false} />
+    </mesh>
   )
 }
 
@@ -636,6 +698,8 @@ function ShipController({
   const camVelRef = useRef(new THREE.Vector3())
   const cameraLocalRef = useRef(new THREE.Vector3(0, 2.4, 8))
   const cameraDistanceRef = useRef(8)
+  const leftTrailRef = useRef(null)
+  const rightTrailRef = useRef(null)
   const leftThrusterRef = useRef(null)
   const rightThrusterRef = useRef(null)
 
@@ -686,6 +750,12 @@ function ShipController({
 
     const frameDt = Math.min(dt, 0.05)
     const keys = keysRef.current
+    const boosting = Boolean(keys.shift)
+    // Hide the blue trails unless we're boosting.
+    if (leftTrailRef.current) leftTrailRef.current.visible = boosting
+    if (rightTrailRef.current) rightTrailRef.current.visible = boosting
+    if (leftThrusterRef.current) leftThrusterRef.current.visible = boosting
+    if (rightThrusterRef.current) rightThrusterRef.current.visible = boosting
 
     const baseSpeed = 9.5
     const speed = keys.shift ? baseSpeed * 2 : baseSpeed
@@ -787,6 +857,13 @@ function ShipController({
     if (vel.current.lengthSq() < 0.000001) vel.current.set(0, 0, 0)
 
     pos.current.addScaledVector(vel.current, frameDt)
+
+    // Keep the ship inside the closed square/box volume.
+    const min = -WORLD_HALF_SIZE + WORLD_MARGIN
+    const max = WORLD_HALF_SIZE - WORLD_MARGIN
+    pos.current.x = THREE.MathUtils.clamp(pos.current.x, min, max)
+    pos.current.y = THREE.MathUtils.clamp(pos.current.y, min, max)
+    pos.current.z = THREE.MathUtils.clamp(pos.current.z, min, max)
     ship.position.copy(pos.current)
     if (shipBodyRef.current) shipBodyRef.current.setNextKinematicTranslation(pos.current)
 
@@ -865,13 +942,13 @@ function ShipController({
         {/* Imported GLB fighter model */}
         <group rotation={[0, Math.PI, 0]} scale={0.85}>
           <primitive object={fighterModel.scene} />
-          <Trail width={0.55} length={6} color="#79eaff" attenuation={(t) => t * t}>
+          <Trail ref={leftTrailRef} width={0.55} length={6} color="#79eaff" attenuation={(t) => t * t}>
             <mesh ref={leftThrusterRef} position={[-0.55, -0.1, 1.35]}>
               <sphereGeometry args={[0.04, 8, 8]} />
               <meshBasicMaterial color="#8cf7ff" transparent opacity={0.01} />
             </mesh>
           </Trail>
-          <Trail width={0.55} length={6} color="#79eaff" attenuation={(t) => t * t}>
+          <Trail ref={rightTrailRef} width={0.55} length={6} color="#79eaff" attenuation={(t) => t * t}>
             <mesh ref={rightThrusterRef} position={[0.55, -0.1, 1.35]}>
               <sphereGeometry args={[0.04, 8, 8]} />
               <meshBasicMaterial color="#8cf7ff" transparent opacity={0.01} />
@@ -894,78 +971,40 @@ export default function SpaceScene() {
     [sunPos, lightPos],
   )
 
-  const planets = useMemo(
-    () => [
-      {
-        name: 'Earth',
-        mapUrl: '/earthmap.png',
-        position: [0, 0, -300],
-        radius: 42,
-      },
-      {
-        name: 'Moon',
-        mapUrl: '/moonmap.png',
-        position: [42, 8, -620],
-        radius: 24,
-      },
-      {
-        name: 'Mercury',
-        mapUrl: '/mercurymap.png',
-        position: [-55, -7, -930],
-        radius: 28,
-      },
-      {
-        name: 'Venus',
-        mapUrl: '/venusmap.png',
-        position: [74, 10, -1240],
-        radius: 36,
-      },
-      {
-        name: 'Mars',
-        mapUrl: '/marsmap.png',
-        position: [-96, -12, -1560],
-        radius: 34,
-      },
-      {
-        name: 'Jupiter',
-        mapUrl: '/jupitermap.png',
-        position: [120, 18, -1890],
-        radius: 76,
-      },
-      {
-        name: 'Saturn',
-        mapUrl: '/saturnmap.png',
-        position: [-138, -14, -2230],
-        radius: 68,
-      },
-      {
-        name: 'Uranus',
-        mapUrl: '/uranusmap.png',
-        position: [165, 20, -2580],
-        radius: 52,
-      },
-      {
-        name: 'Neptune',
-        mapUrl: '/neptunemap.png',
-        position: [-188, -22, -2940],
-        radius: 54,
-      },
-      {
-        name: 'Pluto',
-        mapUrl: '/plutomap.png',
-        position: [206, 16, -3310],
-        radius: 30,
-      },
-      {
-        name: 'Sun',
-        mapUrl: '/sunmap.png',
-        position: [0, 120, -3700],
-        radius: 120,
-        emissive: true,
-      },
-    ],
-    [],
-  )
+  const planets = useMemo(() => {
+    // Order by real planet distance from the Sun (approx. in AU).
+    // Then scale to fit a closed cubic "space" around the player.
+    const radiusScale = 0.17
+    const zOffset = 300
+    const auToZ = 50
+
+    const mercuryZ = -(zOffset + 0.39 * auToZ)
+    const venusZ = -(zOffset + 0.72 * auToZ)
+    const earthZ = -(zOffset + 1.0 * auToZ)
+    const marsZ = -(zOffset + 1.52 * auToZ)
+    const jupiterZ = -(zOffset + 5.2 * auToZ)
+    const saturnZ = -(zOffset + 9.58 * auToZ)
+    const uranusZ = -(zOffset + 19.2 * auToZ)
+    const neptuneZ = -(zOffset + 30.1 * auToZ)
+    const plutoZ = -(zOffset + 39.5 * auToZ)
+
+    const Mercury = { name: 'Mercury', mapUrl: '/mercurymap.png', position: [-1200, 250, mercuryZ], radius: 28 * radiusScale }
+    const Venus = { name: 'Venus', mapUrl: '/venusmap.png', position: [1050, -350, venusZ], radius: 36 * radiusScale }
+    const Earth = { name: 'Earth', mapUrl: '/earthmap.png', position: [-750, -450, earthZ], radius: 42 * radiusScale }
+    const Mars = { name: 'Mars', mapUrl: '/marsmap.png', position: [1300, 350, marsZ], radius: 34 * radiusScale }
+    const Jupiter = { name: 'Jupiter', mapUrl: '/jupitermap.png', position: [-1100, 650, jupiterZ], radius: 76 * radiusScale }
+    const Saturn = { name: 'Saturn', mapUrl: '/saturnmap.png', position: [900, -750, saturnZ], radius: 68 * radiusScale }
+    const Uranus = { name: 'Uranus', mapUrl: '/uranusmap.png', position: [-650, -850, uranusZ], radius: 52 * radiusScale }
+    const Neptune = { name: 'Neptune', mapUrl: '/neptunemap.png', position: [1200, 900, neptuneZ], radius: 54 * radiusScale }
+    const Pluto = { name: 'Pluto', mapUrl: '/plutomap.png', position: [-1150, -250, plutoZ], radius: 30 * radiusScale }
+
+    const Sun = { name: 'Sun', mapUrl: '/sunmap.png', position: [0, 0, 0], radius: 120 * radiusScale, emissive: true }
+    const Moon = { name: 'Moon', mapUrl: '/moonmap.png', position: [Earth.position[0] + 120, Earth.position[1] - 70, Earth.position[2] - 80], radius: 24 * radiusScale }
+
+    // Keep a deterministic order for the UI/mini-map:
+    // Sun is central, then planets by distance.
+    return [Sun, Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto, Moon]
+  }, [])
 
   const lightRef = useRef(null)
   const lightTargetRef = useRef(null)
@@ -990,6 +1029,7 @@ export default function SpaceScene() {
     let bestDistance = Number.POSITIVE_INFINITY
     const shipPos = telemetry.position
     for (const p of planets) {
+      if (p.name === 'Sun') continue
       const d = shipPos.distanceTo(new THREE.Vector3(...p.position)) - p.radius
       if (d < bestDistance) {
         bestDistance = d
@@ -1076,6 +1116,10 @@ export default function SpaceScene() {
         <Suspense fallback={null}>
           <ambientLight intensity={0.34} />
           <hemisphereLight skyColor="#1a2840" groundColor="#05050c" intensity={0.28} />
+
+          {/* Closed "box space" + stars around the whole scene */}
+          <SpaceCubeSkybox boxHalf={WORLD_HALF_SIZE} />
+          <CubeStarfield boxHalf={WORLD_HALF_SIZE} count={26000} />
 
           {/* Directional light emulating a central star. */}
           <directionalLight
