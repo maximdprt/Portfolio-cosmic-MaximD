@@ -671,41 +671,24 @@ function ShipController({
   })
 
   const vel = useRef(new THREE.Vector3())
-  // Spawn point tuned so the first planet is reached in ~30s (no boost).
   const SPAWN_Z = 800
   const pos = useRef(new THREE.Vector3(0, 0, SPAWN_Z))
-  const yaw = useRef(0)
-  const inputSmoothedRef = useRef(new THREE.Vector3())
-  const noseDirSmoothedRef = useRef(new THREE.Vector3(0, 0, -1))
-  const moveInputSmoothedRef = useRef(new THREE.Vector3())
   const fighterModel = useGLTF('/dolph-1_-_light_fighter.glb')
   const tmpCamTarget = useMemo(() => new THREE.Vector3(), [])
   const tmpLookAt = useMemo(() => new THREE.Vector3(), [])
   const tmpShipWorld = useMemo(() => new THREE.Vector3(), [])
   const tmpShipQuat = useMemo(() => new THREE.Quaternion(), [])
   const tmpCamOffset = useMemo(() => new THREE.Vector3(), [])
-  const tmpSpringDisplacement = useMemo(() => new THREE.Vector3(), [])
-  const tmpSpringAccel = useMemo(() => new THREE.Vector3(), [])
   const tmpFocusOffset = useMemo(() => new THREE.Vector3(), [])
-  const tmpDesiredQuat = useMemo(() => new THREE.Quaternion(), [])
-  const tmpEuler = useMemo(() => new THREE.Euler(0, 0, 0, 'YXZ'), [])
-  const tmpMoveDir = useMemo(() => new THREE.Vector3(), [])
-  const tmpLocalForward = useMemo(() => new THREE.Vector3(0, 0, -1), [])
-  const tmpWorldMoveDir = useMemo(() => new THREE.Vector3(), [])
-  const tmpRightWorld = useMemo(() => new THREE.Vector3(), [])
-  const tmpUpWorld = useMemo(() => new THREE.Vector3(), [])
-  const tmpForwardWorld = useMemo(() => new THREE.Vector3(), [])
-  const tmpMoveLocal = useMemo(() => new THREE.Vector3(), [])
   const tmpRayDirLocal = useMemo(() => new THREE.Vector3(), [])
   const tmpRayDirWorld = useMemo(() => new THREE.Vector3(), [])
-  const tmpInputFrontDir = useMemo(() => new THREE.Vector3(), [])
-  const tmpVelDir = useMemo(() => new THREE.Vector3(), [])
-  const tmpVelDirFront = useMemo(() => new THREE.Vector3(), [])
-  const tmpBlendDir = useMemo(() => new THREE.Vector3(), [])
+  const tmpForward = useMemo(() => new THREE.Vector3(), [])
+  const tmpRight = useMemo(() => new THREE.Vector3(), [])
+  const tmpTargetVel = useMemo(() => new THREE.Vector3(), [])
+  const tmpYawQ = useMemo(() => new THREE.Quaternion(), [])
+  const tmpPitchQ = useMemo(() => new THREE.Quaternion(), [])
   const raycasterRef = useRef(new THREE.Raycaster())
-  const camVelRef = useRef(new THREE.Vector3())
   const cameraLocalRef = useRef(new THREE.Vector3(0, 2.4, 8))
-  const cameraDistanceRef = useRef(8)
   const leftTrailRef = useRef(null)
   const rightTrailRef = useRef(null)
   const leftThrusterRef = useRef(null)
@@ -758,132 +741,64 @@ function ShipController({
 
     const frameDt = Math.min(dt, 0.05)
     const keys = keysRef.current
-    const boosting = Boolean(keys.shift)
-    // Hide the blue trails unless we're boosting.
+    const on = controlsEnabled !== false
+
+    // Boost = Shift + Z forward: 3× base forward speed; trails only in that state.
+    const boosting = on && keys.shift && keys.z
     if (leftTrailRef.current) leftTrailRef.current.visible = boosting
     if (rightTrailRef.current) rightTrailRef.current.visible = boosting
     if (leftThrusterRef.current) leftThrusterRef.current.visible = boosting
     if (rightThrusterRef.current) rightThrusterRef.current.visible = boosting
 
     const baseSpeed = 9.5
-    const speed = keys.shift ? baseSpeed * 2 : baseSpeed
+    const strafeSpeed = 8.5
+    const verticalSpeed = 9.5
+    const yawRate = 2.0
+    const pitchRate = 1.85
+
+    if (on) {
+      const yawSign = (keys.q ? 1 : 0) - (keys.d ? 1 : 0)
+      if (yawSign !== 0) {
+        tmpYawQ.setFromAxisAngle(new THREE.Vector3(0, 1, 0), yawRate * frameDt * yawSign)
+        ship.quaternion.multiply(tmpYawQ)
+      }
+      const pitchSign = (keys.space ? 1 : 0) - (keys.a ? 1 : 0)
+      if (pitchSign !== 0) {
+        tmpPitchQ.setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitchRate * frameDt * pitchSign)
+        ship.quaternion.multiply(tmpPitchQ)
+      }
+      ship.quaternion.normalize()
+    }
+
+    tmpForward.set(0, 0, -1).applyQuaternion(ship.quaternion)
+    tmpRight.set(1, 0, 0).applyQuaternion(ship.quaternion)
 
     const moveKeysPressed = Boolean(keys.z || keys.s || keys.q || keys.d || keys.space || keys.a)
-    const effectiveInputPressed = controlsEnabled && moveKeysPressed
-
-    // Raw input in world axes.
-    // Z: forward (-Z), S: backward (+Z), D: right (+X), Q: left (-X).
-    const rawInput = effectiveInputPressed
-      ? new THREE.Vector3(
-          (keys.d ? 1 : 0) - (keys.q ? 1 : 0),
-          (keys.space ? 1 : 0) - (keys.a ? 1 : 0),
-          (keys.s ? 1 : 0) - (keys.z ? 1 : 0),
-        )
-      : new THREE.Vector3(0, 0, 0)
-
-    // Prevent faster diagonal input.
-    if (rawInput.lengthSq() > 1) rawInput.normalize()
-
-    // Low-pass filter input direction for smooth motion (reduces jitter).
-    // If no move key is pressed, hard-stop the smoothing to avoid "ship still drifting".
-    if (!effectiveInputPressed) {
-      inputSmoothedRef.current.set(0, 0, 0)
-      noseDirSmoothedRef.current.set(0, 0, -1)
-    } else {
-      const inputSmooth = 1 - Math.exp(-(keys.shift ? 12.0 : 10.0) * frameDt)
-      inputSmoothedRef.current.lerp(rawInput, inputSmooth)
-    }
-
-    const input = inputSmoothedRef.current
-    if (input.lengthSq() > 1) input.normalize()
-
-    const hasInput = effectiveInputPressed
-    // Back to world-axis movement:
-    // Z: -Z (forward), S: +Z (back), D: +X (right), Q: -X (left), Space/A: +/-Y
-    const targetVel = input.clone().multiplyScalar(speed)
-
-    // Rotation target (nose) logic:
-    // - D/Q (right/left) => nose tilts toward displacement
-    // - Z => nose stays in front
-    // - S, when it's the only key => nose stays in front (pure backward walk)
-    const reverseOnly =
-      effectiveInputPressed &&
-      Boolean(keys.s) &&
-      !keys.z &&
-      !keys.d &&
-      !keys.q &&
-      !keys.space &&
-      !keys.a
-
-    if (reverseOnly) {
-      yaw.current = 0
-      tmpDesiredQuat.identity()
-      noseDirSmoothedRef.current.set(0, 0, -1)
-    } else if (hasInput) {
-      // Nose aim: keep "front-facing" (z negative) even while S/backward,
-      // so the ship does not flip 180° when going backward.
-      tmpInputFrontDir.copy(input)
-      tmpInputFrontDir.z = -Math.abs(tmpInputFrontDir.z)
-      if (tmpInputFrontDir.lengthSq() < 0.0001) tmpInputFrontDir.set(0, 0, -1)
-      tmpInputFrontDir.normalize()
-
-      // Blend input direction with actual velocity direction for natural feel.
-      const velSpeedSq = vel.current.lengthSq()
-      if (velSpeedSq > 0.0001) {
-        tmpVelDir.copy(vel.current).normalize()
-        tmpVelDirFront.copy(tmpVelDir)
-        tmpVelDirFront.z = -Math.abs(tmpVelDirFront.z)
-        if (tmpVelDirFront.lengthSq() < 0.0001) tmpVelDirFront.copy(tmpInputFrontDir)
-        tmpVelDirFront.normalize()
-      } else {
-        tmpVelDirFront.copy(tmpInputFrontDir)
+    tmpTargetVel.set(0, 0, 0)
+    if (on && moveKeysPressed) {
+      if (keys.z) {
+        const fwdMag = keys.shift ? baseSpeed * 3 : baseSpeed
+        tmpTargetVel.addScaledVector(tmpForward, fwdMag)
       }
-
-      const inputWeight = 0.78
-      tmpBlendDir.copy(tmpInputFrontDir).multiplyScalar(inputWeight).addScaledVector(tmpVelDirFront, 1 - inputWeight)
-      if (tmpBlendDir.lengthSq() < 0.0001) tmpBlendDir.copy(tmpInputFrontDir)
-      tmpBlendDir.normalize()
-
-      // Extra smoothing for nose direction to prevent micro-jitter.
-      const noseSmooth = 1 - Math.exp(-8.0 * frameDt)
-      noseDirSmoothedRef.current.lerp(tmpBlendDir, noseSmooth)
-      if (noseDirSmoothedRef.current.lengthSq() < 0.0001) noseDirSmoothedRef.current.set(0, 0, -1)
-      noseDirSmoothedRef.current.normalize()
-
-      yaw.current = Math.atan2(noseDirSmoothedRef.current.x, -noseDirSmoothedRef.current.z)
-      tmpDesiredQuat.setFromUnitVectors(tmpLocalForward, noseDirSmoothedRef.current)
-    } else {
-      // Avoid any snap when no input.
-      tmpDesiredQuat.copy(ship.quaternion)
+      if (keys.s) tmpTargetVel.addScaledVector(tmpForward, -baseSpeed)
+      if (keys.d) tmpTargetVel.addScaledVector(tmpRight, strafeSpeed)
+      if (keys.q) tmpTargetVel.addScaledVector(tmpRight, -strafeSpeed)
+      if (keys.space) tmpTargetVel.y += verticalSpeed
+      if (keys.a) tmpTargetVel.y -= verticalSpeed
     }
 
-    // Smooth ship rotation (no brutal snap).
-    // When no input: don't interpolate (prevents numeric micro-drift).
-    if (hasInput || reverseOnly) {
-      const rotSmooth = 2.2
-      const shipLerpAlpha = 1 - Math.exp(-(rotSmooth * frameDt))
-      ship.quaternion.slerp(tmpDesiredQuat, shipLerpAlpha)
-    } else {
-      ship.quaternion.copy(tmpDesiredQuat)
-    }
-
-    // Inertial motion with drag:
-    // - while input exists: accelerate toward targetVel smoothly
-    // - while no input: exponential drag to keep motion smooth (no "lerp to zero" twitch)
-    if (hasInput) {
-      const accelSmooth = keys.shift ? 4.6 : 3.6
+    if (on && moveKeysPressed) {
+      const accelSmooth = keys.shift && keys.z ? 6.2 : 3.6
       const velLerpAlpha = 1 - Math.exp(-(accelSmooth * frameDt))
-      vel.current.lerp(targetVel, velLerpAlpha)
+      vel.current.lerp(tmpTargetVel, velLerpAlpha)
     } else {
-      const drag = 1.25 // higher = stops sooner
+      const drag = 1.25
       vel.current.multiplyScalar(Math.exp(-drag * frameDt))
     }
-    // Kill sub-pixel jitter when nearly stopped.
     if (vel.current.lengthSq() < 0.000001) vel.current.set(0, 0, 0)
 
     pos.current.addScaledVector(vel.current, frameDt)
 
-    // Keep the ship inside the closed square/box volume.
     const min = -WORLD_HALF_SIZE + WORLD_MARGIN
     const max = WORLD_HALF_SIZE - WORLD_MARGIN
     const clampedX = THREE.MathUtils.clamp(pos.current.x, min, max)
@@ -908,7 +823,6 @@ function ShipController({
     ship.getWorldPosition(tmpShipWorld)
     ship.getWorldQuaternion(tmpShipQuat)
 
-    // Anti-clipping: raycast + sphere radius margin.
     let blockedDistance = targetArmLength
     if (collidableMeshes && collidableMeshes.current.length > 0) {
       const pivotWorld = tmpShipWorld.clone().add(new THREE.Vector3(0, pivotOffsetY, 0))
@@ -934,7 +848,6 @@ function ShipController({
     tmpCamOffset.copy(cameraLocalRef.current).applyQuaternion(tmpShipQuat)
     tmpCamTarget.copy(tmpShipWorld).add(tmpCamOffset)
 
-    // Critically-smoothed camera: no spring oscillation (less shake).
     const camLerpAlpha = 1 - Math.exp(-18 * frameDt)
     state.camera.position.lerp(tmpCamTarget, camLerpAlpha)
 
@@ -948,13 +861,14 @@ function ShipController({
     if (damageOverlayRef.current) damageOverlayRef.current.style.opacity = `${Math.min(0.5, damageRef.current * 0.55)}`
 
     if (onTelemetry) {
-      const headingDeg = ((THREE.MathUtils.radToDeg(yaw.current) % 360) + 360) % 360
+      const headingRad = Math.atan2(tmpForward.x, -tmpForward.z)
+      const headingDeg = ((THREE.MathUtils.radToDeg(headingRad) % 360) + 360) % 360
       onTelemetry({
         position: pos.current.clone(),
         speed: vel.current.length(),
         headingDeg,
-        boostLevel: keys.shift ? 1 : 0.5,
-        boosting: keys.shift,
+        boostLevel: boosting ? 1 : 0.5,
+        boosting,
       })
     }
   })
@@ -993,61 +907,6 @@ function ShipController({
 }
 
 useGLTF.preload('/dolph-1_-_light_fighter.glb')
-
-// Static ship: no keyboard, no movement, no direction logic.
-function StaticShipController({ damageRef, onShipMeshReady }) {
-  const SPAWN_Z = 800
-  const shipBodyRef = useRef(null)
-  const fighterModel = useGLTF('/dolph-1_-_light_fighter.glb')
-  const leftTrailRef = useRef(null)
-  const rightTrailRef = useRef(null)
-  const leftThrusterRef = useRef(null)
-  const rightThrusterRef = useRef(null)
-
-  useEffect(() => {
-    // Hide exhaust visuals completely unless you re-enable motion/boost logic.
-    if (leftTrailRef.current) leftTrailRef.current.visible = false
-    if (rightTrailRef.current) rightTrailRef.current.visible = false
-    if (leftThrusterRef.current) leftThrusterRef.current.visible = false
-    if (rightThrusterRef.current) rightThrusterRef.current.visible = false
-  }, [])
-
-  useEffect(() => {
-    if (onShipMeshReady && fighterModel?.scene) onShipMeshReady(fighterModel.scene)
-  }, [fighterModel, onShipMeshReady])
-
-  return (
-    <RigidBody
-      ref={shipBodyRef}
-      type="kinematicPosition"
-      colliders="ball"
-      position={[0, 0, SPAWN_Z]}
-      onCollisionEnter={() => {
-        if (!damageRef) return
-        damageRef.current = Math.min(1, damageRef.current + 0.34)
-      }}
-    >
-      <group>
-        <group rotation={[0, Math.PI, 0]} scale={0.85}>
-          <primitive object={fighterModel.scene} />
-          <Trail ref={leftTrailRef} width={0.55} length={6} color="#79eaff" attenuation={(t) => t * t}>
-            <mesh ref={leftThrusterRef} position={[-0.55, -0.1, 1.35]}>
-              <sphereGeometry args={[0.04, 8, 8]} />
-              <meshBasicMaterial color="#8cf7ff" transparent opacity={0.01} />
-            </mesh>
-          </Trail>
-          <Trail ref={rightTrailRef} width={0.55} length={6} color="#79eaff" attenuation={(t) => t * t}>
-            <mesh ref={rightThrusterRef} position={[0.55, -0.1, 1.35]}>
-              <sphereGeometry args={[0.04, 8, 8]} />
-              <meshBasicMaterial color="#8cf7ff" transparent opacity={0.01} />
-            </mesh>
-          </Trail>
-        </group>
-        <pointLight position={[0, 1.7, 2.2]} intensity={18} distance={42} color="#bcdcff" />
-      </group>
-    </RigidBody>
-  )
-}
 
 export default function SpaceScene() {
   const sunPos = useMemo(() => new THREE.Vector3(0, 0, 0), [])
@@ -1249,7 +1108,14 @@ export default function SpaceScene() {
 
           <Physics gravity={[0, 0, 0]} timeStep="vary">
             {/* Player ship + keyboard controls */}
-            <StaticShipController damageRef={damageRef} onShipMeshReady={registerCollidableMesh} />
+            <ShipController
+              damageOverlayRef={damageOverlayRef}
+              damageRef={damageRef}
+              collidableMeshes={collidableMeshesRef}
+              onShipMeshReady={registerCollidableMesh}
+              controlsEnabled={!overlayPlanet && !isCinematic}
+              onTelemetry={setTelemetry}
+            />
             {planets.map((p, idx) => (
               <TexturedPlanet
                 key={`${p.name}-${idx}`}
