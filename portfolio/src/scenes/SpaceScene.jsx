@@ -47,8 +47,8 @@ const PLANET_CONTENT = {
 }
 
 // World size for a closed "box" space (visual + clamp).
-const WORLD_HALF_SIZE = 6000
-const WORLD_MARGIN = 180
+const WORLD_HALF_SIZE = 9000
+const WORLD_MARGIN = 240
 
 function Starfield({ count = 22000, radius = 12000 }) {
   const geometry = useMemo(() => {
@@ -977,11 +977,11 @@ export default function SpaceScene() {
     // Place les planètes sur une "spirale" (progression en Z régulière)
     // pour éviter toute ligne droite tout en garantissant un temps de trajet suffisant.
     // Ordre réel conservé : Mercure -> ... -> Pluton (+ Lune près de la Terre).
-    const radiusScale = 3.0
+    const radiusScale = 4.8
     const shipSpawnZ = 800
-    const zSpacing = 420 // ~44s à vitesse max (sans boost), plus que le minimum demandé
-    const xyBase = 1200
-    const xyStep = 110
+    const zSpacing = 850
+    const xyBase = 3600
+    const xyStep = 360
     const yFactor = 0.32
 
     const makePlanet = (def, i) => {
