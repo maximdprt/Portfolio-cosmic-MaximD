@@ -974,9 +974,10 @@ export default function SpaceScene() {
   const planets = useMemo(() => {
     // Ordre réel = distance au Soleil (AU), mais positions en 3D **non alignées**
     // (évite un "couloir" / ligne directrice visuelle vers les planètes).
-    const radiusScale = 0.17
-    const baseR = 260
-    const auScale = 48
+    // Make planets much larger and much closer together.
+    const radiusScale = 1.7 // ~10x bigger than before
+    const baseR = 95
+    const auScale = 18
 
     const shell = (au, theta, phi) => {
       const r = baseR + au * auScale
@@ -1049,9 +1050,9 @@ export default function SpaceScene() {
       name: 'Moon',
       mapUrl: '/moonmap.png',
       position: [
-        Earth.position[0] + 45,
-        Earth.position[1] + 22,
-        Earth.position[2] - 38,
+        Earth.position[0] + 22,
+        Earth.position[1] + 10,
+        Earth.position[2] - 16,
       ],
       radius: 24 * radiusScale,
     }
