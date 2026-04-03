@@ -47,8 +47,8 @@ const PLANET_CONTENT = {
 }
 
 // World size for a closed "box" space (visual + clamp).
-const WORLD_HALF_SIZE = 2400
-const WORLD_MARGIN = 80
+const WORLD_HALF_SIZE = 6000
+const WORLD_MARGIN = 180
 
 function Starfield({ count = 22000, radius = 12000 }) {
   const geometry = useMemo(() => {
@@ -671,7 +671,9 @@ function ShipController({
   })
 
   const vel = useRef(new THREE.Vector3())
-  const pos = useRef(new THREE.Vector3(0, 0, 18))
+  // Spawn point tuned so the first planet is reached in ~30s (no boost).
+  const SPAWN_Z = 800
+  const pos = useRef(new THREE.Vector3(0, 0, SPAWN_Z))
   const yaw = useRef(0)
   const inputSmoothedRef = useRef(new THREE.Vector3())
   const noseDirSmoothedRef = useRef(new THREE.Vector3(0, 0, -1))
@@ -933,7 +935,7 @@ function ShipController({
       ref={shipBodyRef}
       type="kinematicPosition"
       colliders="ball"
-      position={[0, 0, 18]}
+      position={[0, 0, SPAWN_Z]}
       onCollisionEnter={() => {
         damageRef.current = Math.min(1, damageRef.current + 0.34)
       }}
@@ -972,88 +974,57 @@ export default function SpaceScene() {
   )
 
   const planets = useMemo(() => {
-    // Ordre réel = distance au Soleil (AU), mais positions en 3D **non alignées**
-    // (évite un "couloir" / ligne directrice visuelle vers les planètes).
-    // Make planets much larger and much more spaced out.
-    // (keeps enough travel time between consecutive planets)
-    const radiusScale = 2.8
-    const baseR = 320
-    const auScale = 50
+    // Place les planètes sur une "spirale" (progression en Z régulière)
+    // pour éviter toute ligne droite tout en garantissant un temps de trajet suffisant.
+    // Ordre réel conservé : Mercure -> ... -> Pluton (+ Lune près de la Terre).
+    const radiusScale = 3.0
+    const shipSpawnZ = 800
+    const zSpacing = 420 // ~44s à vitesse max (sans boost), plus que le minimum demandé
+    const xyBase = 1200
+    const xyStep = 110
+    const yFactor = 0.32
 
-    const shell = (au, theta, phi) => {
-      const r = baseR + au * auScale
-      const st = Math.sin(theta)
-      const sp = Math.sin(phi)
-      const cp = Math.cos(phi)
-      const x = r * st * cp
-      const y = r * Math.cos(theta)
-      const z = r * st * Math.sin(phi)
-      return [x, y, z]
+    const makePlanet = (def, i) => {
+      const angle = i * 0.85
+      const rXY = xyBase + i * xyStep
+      const x = Math.cos(angle) * rXY
+      const y = Math.sin(angle) * rXY * yFactor
+      const z = shipSpawnZ - zSpacing * (i + 1)
+      return { ...def, position: [x, y, z], radius: def.baseRadius * radiusScale }
     }
 
-    const Mercury = {
-      name: 'Mercury',
-      mapUrl: '/mercurymap.png',
-      position: shell(0.39, 1.05, 0.62),
-      radius: 28 * radiusScale,
-    }
-    const Venus = {
-      name: 'Venus',
-      mapUrl: '/venusmap.png',
-      position: shell(0.72, 2.15, -1.22),
-      radius: 36 * radiusScale,
-    }
-    const Earth = {
-      name: 'Earth',
-      mapUrl: '/earthmap.png',
-      position: shell(1.0, -0.88, 2.41),
-      radius: 42 * radiusScale,
-    }
-    const Mars = {
-      name: 'Mars',
-      mapUrl: '/marsmap.png',
-      position: shell(1.52, 1.72, -2.05),
-      radius: 34 * radiusScale,
-    }
-    const Jupiter = {
-      name: 'Jupiter',
-      mapUrl: '/jupitermap.png',
-      position: shell(5.2, -1.33, 0.95),
-      radius: 76 * radiusScale,
-    }
-    const Saturn = {
-      name: 'Saturn',
-      mapUrl: '/saturnmap.png',
-      position: shell(9.58, 2.5, -0.71),
-      radius: 68 * radiusScale,
-    }
-    const Uranus = {
-      name: 'Uranus',
-      mapUrl: '/uranusmap.png',
-      position: shell(19.2, -2.08, 1.88),
-      radius: 52 * radiusScale,
-    }
-    const Neptune = {
-      name: 'Neptune',
-      mapUrl: '/neptunemap.png',
-      position: shell(30.1, 0.55, -2.65),
-      radius: 54 * radiusScale,
-    }
-    const Pluto = {
-      name: 'Pluto',
-      mapUrl: '/plutomap.png',
-      position: shell(39.5, 1.9, 2.9),
-      radius: 30 * radiusScale,
-    }
+    const MercuryDef = { name: 'Mercury', mapUrl: '/mercurymap.png', baseRadius: 28 }
+    const VenusDef = { name: 'Venus', mapUrl: '/venusmap.png', baseRadius: 36 }
+    const EarthDef = { name: 'Earth', mapUrl: '/earthmap.png', baseRadius: 42 }
+    const MarsDef = { name: 'Mars', mapUrl: '/marsmap.png', baseRadius: 34 }
+    const JupiterDef = { name: 'Jupiter', mapUrl: '/jupitermap.png', baseRadius: 76 }
+    const SaturnDef = { name: 'Saturn', mapUrl: '/saturnmap.png', baseRadius: 68 }
+    const UranusDef = { name: 'Uranus', mapUrl: '/uranusmap.png', baseRadius: 52 }
+    const NeptuneDef = { name: 'Neptune', mapUrl: '/neptunemap.png', baseRadius: 54 }
+    const PlutoDef = { name: 'Pluto', mapUrl: '/plutomap.png', baseRadius: 30 }
+
+    const Mercury = makePlanet(MercuryDef, 0)
+    const Venus = makePlanet(VenusDef, 1)
+    const Earth = makePlanet(EarthDef, 2)
+    const Mars = makePlanet(MarsDef, 3)
+    const Jupiter = makePlanet(JupiterDef, 4)
+    const Saturn = makePlanet(SaturnDef, 5)
+    const Uranus = makePlanet(UranusDef, 6)
+    const Neptune = makePlanet(NeptuneDef, 7)
+    const Pluto = makePlanet(PlutoDef, 8)
 
     const Sun = { name: 'Sun', mapUrl: '/sunmap.png', position: [0, 0, 0], radius: 120 * radiusScale, emissive: true }
+
+    // Moon: positionnée autour de la Terre (dans la même direction depuis le Soleil).
+    const earthVec = new THREE.Vector3(...Earth.position).normalize()
+    const moonDistance = Earth.radius * 1.55
     const Moon = {
       name: 'Moon',
       mapUrl: '/moonmap.png',
       position: [
-        Earth.position[0] + 22 * (radiusScale / 1.7),
-        Earth.position[1] + 10 * (radiusScale / 1.7),
-        Earth.position[2] - 16 * (radiusScale / 1.7),
+        Earth.position[0] + earthVec.x * moonDistance,
+        Earth.position[1] + earthVec.y * moonDistance,
+        Earth.position[2] + earthVec.z * moonDistance,
       ],
       radius: 24 * radiusScale,
     }
@@ -1067,7 +1038,7 @@ export default function SpaceScene() {
   const damageRef = useRef(0)
   const collidableMeshesRef = useRef([])
   const [telemetry, setTelemetry] = useState({
-    position: new THREE.Vector3(0, 0, 18),
+    position: new THREE.Vector3(0, 0, 800),
     speed: 0,
     headingDeg: 0,
     boostLevel: 0.5,
