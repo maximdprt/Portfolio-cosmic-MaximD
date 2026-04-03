@@ -762,27 +762,36 @@ function ShipController({
     const baseSpeed = 9.5
     const speed = keys.shift ? baseSpeed * 2 : baseSpeed
 
+    const moveKeysPressed = Boolean(keys.z || keys.s || keys.q || keys.d || keys.space || keys.a)
+    const effectiveInputPressed = controlsEnabled && moveKeysPressed
+
     // Raw input in world axes.
     // Z: forward (-Z), S: backward (+Z), D: right (+X), Q: left (-X).
-    const rawInput = controlsEnabled
+    const rawInput = effectiveInputPressed
       ? new THREE.Vector3(
-        (keys.d ? 1 : 0) - (keys.q ? 1 : 0),
-        (keys.space ? 1 : 0) - (keys.a ? 1 : 0),
-        (keys.s ? 1 : 0) - (keys.z ? 1 : 0),
-      )
-      : new THREE.Vector3()
+          (keys.d ? 1 : 0) - (keys.q ? 1 : 0),
+          (keys.space ? 1 : 0) - (keys.a ? 1 : 0),
+          (keys.s ? 1 : 0) - (keys.z ? 1 : 0),
+        )
+      : new THREE.Vector3(0, 0, 0)
 
     // Prevent faster diagonal input.
     if (rawInput.lengthSq() > 1) rawInput.normalize()
 
     // Low-pass filter input direction for smooth motion (reduces jitter).
-    const inputSmooth = 1 - Math.exp(-(keys.shift ? 12.0 : 10.0) * frameDt)
-    inputSmoothedRef.current.lerp(rawInput, inputSmooth)
+    // If no move key is pressed, hard-stop the smoothing to avoid "ship still drifting".
+    if (!effectiveInputPressed) {
+      inputSmoothedRef.current.set(0, 0, 0)
+      noseDirSmoothedRef.current.set(0, 0, -1)
+    } else {
+      const inputSmooth = 1 - Math.exp(-(keys.shift ? 12.0 : 10.0) * frameDt)
+      inputSmoothedRef.current.lerp(rawInput, inputSmooth)
+    }
 
     const input = inputSmoothedRef.current
     if (input.lengthSq() > 1) input.normalize()
 
-    const hasInput = input.lengthSq() > 0.0001
+    const hasInput = effectiveInputPressed
     const targetVel = input.clone().multiplyScalar(speed)
 
     // Rotation target (nose) logic:
@@ -790,6 +799,7 @@ function ShipController({
     // - Z => nose stays in front
     // - S, when it's the only key => nose stays in front (pure backward walk)
     const reverseOnly =
+      effectiveInputPressed &&
       Boolean(keys.s) &&
       !keys.z &&
       !keys.d &&
@@ -840,9 +850,14 @@ function ShipController({
     }
 
     // Smooth ship rotation (no brutal snap).
-    const rotSmooth = 2.2
-    const shipLerpAlpha = 1 - Math.exp(-(rotSmooth * frameDt))
-    ship.quaternion.slerp(tmpDesiredQuat, shipLerpAlpha)
+    // When no input: don't interpolate (prevents numeric micro-drift).
+    if (hasInput || reverseOnly) {
+      const rotSmooth = 2.2
+      const shipLerpAlpha = 1 - Math.exp(-(rotSmooth * frameDt))
+      ship.quaternion.slerp(tmpDesiredQuat, shipLerpAlpha)
+    } else {
+      ship.quaternion.copy(tmpDesiredQuat)
+    }
 
     // Inertial motion with drag:
     // - while input exists: accelerate toward targetVel smoothly
@@ -863,9 +878,15 @@ function ShipController({
     // Keep the ship inside the closed square/box volume.
     const min = -WORLD_HALF_SIZE + WORLD_MARGIN
     const max = WORLD_HALF_SIZE - WORLD_MARGIN
-    pos.current.x = THREE.MathUtils.clamp(pos.current.x, min, max)
-    pos.current.y = THREE.MathUtils.clamp(pos.current.y, min, max)
-    pos.current.z = THREE.MathUtils.clamp(pos.current.z, min, max)
+    const clampedX = THREE.MathUtils.clamp(pos.current.x, min, max)
+    const clampedY = THREE.MathUtils.clamp(pos.current.y, min, max)
+    const clampedZ = THREE.MathUtils.clamp(pos.current.z, min, max)
+    if (clampedX !== pos.current.x) vel.current.x = 0
+    if (clampedY !== pos.current.y) vel.current.y = 0
+    if (clampedZ !== pos.current.z) vel.current.z = 0
+    pos.current.x = clampedX
+    pos.current.y = clampedY
+    pos.current.z = clampedZ
     ship.position.copy(pos.current)
     if (shipBodyRef.current) shipBodyRef.current.setNextKinematicTranslation(pos.current)
 
