@@ -972,37 +972,90 @@ export default function SpaceScene() {
   )
 
   const planets = useMemo(() => {
-    // Order by real planet distance from the Sun (approx. in AU).
-    // Then scale to fit a closed cubic "space" around the player.
+    // Ordre réel = distance au Soleil (AU), mais positions en 3D **non alignées**
+    // (évite un "couloir" / ligne directrice visuelle vers les planètes).
     const radiusScale = 0.17
-    const zOffset = 300
-    const auToZ = 50
+    const baseR = 260
+    const auScale = 48
 
-    const mercuryZ = -(zOffset + 0.39 * auToZ)
-    const venusZ = -(zOffset + 0.72 * auToZ)
-    const earthZ = -(zOffset + 1.0 * auToZ)
-    const marsZ = -(zOffset + 1.52 * auToZ)
-    const jupiterZ = -(zOffset + 5.2 * auToZ)
-    const saturnZ = -(zOffset + 9.58 * auToZ)
-    const uranusZ = -(zOffset + 19.2 * auToZ)
-    const neptuneZ = -(zOffset + 30.1 * auToZ)
-    const plutoZ = -(zOffset + 39.5 * auToZ)
+    const shell = (au, theta, phi) => {
+      const r = baseR + au * auScale
+      const st = Math.sin(theta)
+      const sp = Math.sin(phi)
+      const cp = Math.cos(phi)
+      const x = r * st * cp
+      const y = r * Math.cos(theta)
+      const z = r * st * Math.sin(phi)
+      return [x, y, z]
+    }
 
-    const Mercury = { name: 'Mercury', mapUrl: '/mercurymap.png', position: [-1200, 250, mercuryZ], radius: 28 * radiusScale }
-    const Venus = { name: 'Venus', mapUrl: '/venusmap.png', position: [1050, -350, venusZ], radius: 36 * radiusScale }
-    const Earth = { name: 'Earth', mapUrl: '/earthmap.png', position: [-750, -450, earthZ], radius: 42 * radiusScale }
-    const Mars = { name: 'Mars', mapUrl: '/marsmap.png', position: [1300, 350, marsZ], radius: 34 * radiusScale }
-    const Jupiter = { name: 'Jupiter', mapUrl: '/jupitermap.png', position: [-1100, 650, jupiterZ], radius: 76 * radiusScale }
-    const Saturn = { name: 'Saturn', mapUrl: '/saturnmap.png', position: [900, -750, saturnZ], radius: 68 * radiusScale }
-    const Uranus = { name: 'Uranus', mapUrl: '/uranusmap.png', position: [-650, -850, uranusZ], radius: 52 * radiusScale }
-    const Neptune = { name: 'Neptune', mapUrl: '/neptunemap.png', position: [1200, 900, neptuneZ], radius: 54 * radiusScale }
-    const Pluto = { name: 'Pluto', mapUrl: '/plutomap.png', position: [-1150, -250, plutoZ], radius: 30 * radiusScale }
+    const Mercury = {
+      name: 'Mercury',
+      mapUrl: '/mercurymap.png',
+      position: shell(0.39, 1.05, 0.62),
+      radius: 28 * radiusScale,
+    }
+    const Venus = {
+      name: 'Venus',
+      mapUrl: '/venusmap.png',
+      position: shell(0.72, 2.15, -1.22),
+      radius: 36 * radiusScale,
+    }
+    const Earth = {
+      name: 'Earth',
+      mapUrl: '/earthmap.png',
+      position: shell(1.0, -0.88, 2.41),
+      radius: 42 * radiusScale,
+    }
+    const Mars = {
+      name: 'Mars',
+      mapUrl: '/marsmap.png',
+      position: shell(1.52, 1.72, -2.05),
+      radius: 34 * radiusScale,
+    }
+    const Jupiter = {
+      name: 'Jupiter',
+      mapUrl: '/jupitermap.png',
+      position: shell(5.2, -1.33, 0.95),
+      radius: 76 * radiusScale,
+    }
+    const Saturn = {
+      name: 'Saturn',
+      mapUrl: '/saturnmap.png',
+      position: shell(9.58, 2.5, -0.71),
+      radius: 68 * radiusScale,
+    }
+    const Uranus = {
+      name: 'Uranus',
+      mapUrl: '/uranusmap.png',
+      position: shell(19.2, -2.08, 1.88),
+      radius: 52 * radiusScale,
+    }
+    const Neptune = {
+      name: 'Neptune',
+      mapUrl: '/neptunemap.png',
+      position: shell(30.1, 0.55, -2.65),
+      radius: 54 * radiusScale,
+    }
+    const Pluto = {
+      name: 'Pluto',
+      mapUrl: '/plutomap.png',
+      position: shell(39.5, 1.9, 2.9),
+      radius: 30 * radiusScale,
+    }
 
     const Sun = { name: 'Sun', mapUrl: '/sunmap.png', position: [0, 0, 0], radius: 120 * radiusScale, emissive: true }
-    const Moon = { name: 'Moon', mapUrl: '/moonmap.png', position: [Earth.position[0] + 120, Earth.position[1] - 70, Earth.position[2] - 80], radius: 24 * radiusScale }
+    const Moon = {
+      name: 'Moon',
+      mapUrl: '/moonmap.png',
+      position: [
+        Earth.position[0] + 45,
+        Earth.position[1] + 22,
+        Earth.position[2] - 38,
+      ],
+      radius: 24 * radiusScale,
+    }
 
-    // Keep a deterministic order for the UI/mini-map:
-    // Sun is central, then planets by distance.
     return [Sun, Mercury, Venus, Earth, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto, Moon]
   }, [])
 
@@ -1130,8 +1183,6 @@ export default function SpaceScene() {
           />
           <object3D ref={lightTargetRef} position={[sunPos.x, sunPos.y, sunPos.z]} />
 
-          <PulsingRing />
-          <FloatingName name="COSMIC VOYAGER" />
           <WarpTunnel active={telemetry.boosting && !overlayPlanet && !isCinematic} />
           <LandingDirector
             trigger={landingTrigger}
