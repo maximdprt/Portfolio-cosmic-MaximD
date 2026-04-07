@@ -1,0 +1,244 @@
+.hud-panel {
+  background: rgba(2, 8, 20, 0.70);
+  border: 1px solid rgba(60, 150, 220, 0.18);
+  border-radius: 12px;
+  backdrop-filter: blur(5px);
+  font-family: 'JetBrains Mono', monospace;
+  pointer-events: none;
+}
+
+.hud-label {
+  font-size: 10px;
+  letter-spacing: 3px;
+  color: #2a6880;
+  margin-bottom: 8px;
+}
+
+.hud-bar-track {
+  height: 3px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.hud-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 120ms;
+}
+
+.hud-top-center {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  font-family: 'JetBrains Mono', monospace;
+  text-align: center;
+}
+
+.hud-minimap {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  padding: 13px;
+}
+
+.hud-speed {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  padding: 13px 18px;
+  min-width: 180px;
+  color: #7de8ff;
+}
+
+.hud-controls {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  padding: 13px 16px;
+  color: #7de8ff;
+}
+
+.hud-speed-value {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.hud-speed-unit {
+  font-size: 12px;
+  font-weight: 400;
+  margin-left: 6px;
+  color: #2a6880;
+}
+
+.hud-stat-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  margin-bottom: 3px;
+}
+
+.hud-coords {
+  margin-top: 10px;
+  font-size: 10px;
+  color: #1e3a50;
+  line-height: 1.6;
+}
+
+.hud-controls-table {
+  border-collapse: collapse;
+  font-size: 11px;
+  line-height: 1.8;
+}
+
+.hud-key-cell {
+  padding-right: 14px;
+  color: #4a9ab8;
+  font-weight: 700;
+}
+
+.hud-val-cell {
+  color: #2a5870;
+}
+
+/* Planet overlay */
+.planet-overlay-bg {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  backdrop-filter: blur(7px);
+  display: grid;
+  place-items: center;
+  z-index: 10;
+}
+
+.planet-overlay-card {
+  width: min(800px, 92vw);
+  border-radius: 18px;
+  background: rgba(4, 8, 20, 0.94);
+  color: #d8efff;
+  font-family: 'JetBrains Mono', monospace;
+  padding: 30px;
+}
+
+.planet-overlay-subtitle {
+  font-size: 11px;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+
+.planet-overlay-title {
+  margin: 0 0 14px;
+  font-size: 30px;
+  color: #fff;
+  letter-spacing: 1px;
+}
+
+.planet-overlay-body {
+  line-height: 1.75;
+  color: #88aacc;
+  margin: 0;
+}
+
+.planet-overlay-actions {
+  margin-top: 22px;
+  display: flex;
+  gap: 12px;
+}
+
+.planet-overlay-btn {
+  padding: 10px 20px;
+  border-radius: 9px;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
+.planet-overlay-btn--secondary {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #c8e4ff;
+}
+
+.planet-overlay-btn--primary {
+  border: none;
+  color: #00101e;
+  font-weight: 700;
+}
+
+/* Loading screen */
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  background: #04050b;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'JetBrains Mono', monospace;
+  color: #7de8ff;
+  z-index: 100;
+}
+
+.loading-title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 6px;
+  margin-bottom: 32px;
+  color: #bfe9ff;
+}
+
+.loading-bar-track {
+  width: 280px;
+  height: 3px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.07);
+  overflow: hidden;
+}
+
+.loading-bar-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, #4ad6ff, #00f3ff);
+  animation: loading-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes loading-pulse {
+  0%, 100% { width: 30%; margin-left: 0; }
+  50% { width: 60%; margin-left: 20%; }
+}
+
+.loading-hint {
+  margin-top: 18px;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: #2a6880;
+}
+
+/* Title overlay (fade out) */
+.title-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+  padding-top: 22vh;
+  z-index: 5;
+  font-family: 'JetBrains Mono', monospace;
+  transition: opacity 1.5s ease-out;
+}
+
+.title-text {
+  font-size: 38px;
+  font-weight: 700;
+  letter-spacing: 10px;
+  color: #bfe9ff;
+  text-shadow: 0 0 40px rgba(0, 200, 255, 0.3);
+}
