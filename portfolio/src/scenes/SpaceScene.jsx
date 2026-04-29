@@ -73,7 +73,7 @@ export default function SpaceScene() {
   const isReady = !active && progress >= 100
   const reducedMotion = useMemo(() => window.matchMedia('(prefers-reduced-motion: reduce)').matches, [])
   const touchDevice = useMemo(() => 'ontouchstart' in window && !window.matchMedia('(pointer: fine)').matches, [])
-  const [showOnboarding, setShowOnboarding] = useState(() => !localStorage.getItem('cosmic_onboarded'))
+  const [showOnboarding, setShowOnboarding] = useState(true)
 
   const planets = useMemo(() => {
     const SC = 14.0, BZ = 500, ZS = 1600, XB = 5500, XS = 700, YF = 0.25
@@ -156,10 +156,7 @@ export default function SpaceScene() {
         open={isReady && showOnboarding}
         reducedMotion={reducedMotion}
         touchDevice={touchDevice}
-        onStart={() => {
-          localStorage.setItem('cosmic_onboarded', '1')
-          setShowOnboarding(false)
-        }}
+        onStart={() => setShowOnboarding(false)}
       />
       {!overlayPlanet && <HudOverlay telemetry={telemetry} planets={planets} nearestPlanet={nearestPlanet} canLand={canLand} />}
       <PlanetOverlay planet={overlayPlanet} onClose={() => setOverlayPlanet(null)} reducedMotion={reducedMotion} />
