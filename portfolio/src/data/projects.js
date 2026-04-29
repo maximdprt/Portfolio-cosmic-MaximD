@@ -1,4 +1,7 @@
 export const PROJECTS = {
+  // ───────────────────────────────────────────────────────────────────────────
+  // EARTH — Lacanau Beach Handball Xperience
+  // ───────────────────────────────────────────────────────────────────────────
   Earth: {
     planet: 'Earth',
     index: 1,
@@ -15,14 +18,25 @@ export const PROJECTS = {
       "partenaires, la billetterie boutique et le recrutement des volontaires, dans une interface " +
       "immersive multilingue (FR/EN/ES/DE) pour toucher un public européen.",
     highlights: [
-      'Interface multilingue 4 langues avec sélecteur dynamique',
-      'Hero vidéo en arrière-plan pour une immersion immédiate',
-      'CTA différenciés (inscription équipe / volontariat) selon profil utilisateur',
-      'Intégration HelloAsso pour les inscriptions et paiements',
-      'Boutique merchandising et page partenaires',
+      "Interface multilingue 4 langues avec sélecteur dynamique",
+      "Hero vidéo en arrière-plan pour une immersion immédiate",
+      "CTA différenciés (inscription équipe / volontariat) selon profil utilisateur",
+      "Intégration HelloAsso pour les inscriptions et paiements",
+      "Boutique merchandising et page partenaires",
     ],
-    stack: ['Next.js', 'React', 'TypeScript', 'Tailwind CSS', 'i18n (next-intl)', 'Vercel'],
+    stack: [
+      'Next.js',
+      'React',
+      'TypeScript',
+      'Tailwind CSS',
+      'i18n (next-intl)',
+      'Vercel',
+    ],
   },
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // MARS — Massage Aura Performance
+  // ───────────────────────────────────────────────────────────────────────────
   Mars: {
     planet: 'Mars',
     index: 2,
@@ -39,14 +53,25 @@ export const PROJECTS = {
       "(cabinet et domicile), et intègre un système de réservation pour fluidifier la prise de " +
       "rendez-vous depuis le mobile comme depuis le desktop.",
     highlights: [
-      'Direction artistique premium : gradient or sur fond doux, typographies sérif/sans-serif',
-      'Hero parallaxe avec image de soin en arrière-plan flouté',
-      'Architecture orientée conversion (CTA Réserver présent dans la nav)',
-      'Pages dédiées : Nos Massages, Infos, Contact, Réservation',
-      'SEO local optimisé pour Lacanau-Océan et Médoc Atlantique',
+      "Direction artistique premium : gradient or sur fond doux, typographies sérif/sans-serif",
+      "Hero parallaxe avec image de soin en arrière-plan flouté",
+      "Architecture orientée conversion (CTA Réserver présent dans la nav)",
+      "Pages dédiées : Nos Massages, Infos, Contact, Réservation",
+      "SEO local optimisé pour Lacanau-Océan et Médoc Atlantique",
     ],
-    stack: ['Next.js', 'React', 'Tailwind CSS', 'Framer Motion', 'Système de réservation intégré', 'Hébergement domaine custom .fr'],
+    stack: [
+      'Next.js',
+      'React',
+      'Tailwind CSS',
+      'Framer Motion',
+      'Système de réservation intégré',
+      'Hébergement domaine custom .fr',
+    ],
   },
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // VENUS — Lacanau Volley-Ball
+  // ───────────────────────────────────────────────────────────────────────────
   Venus: {
     planet: 'Venus',
     index: 3,
@@ -63,14 +88,25 @@ export const PROJECTS = {
       "présentation des activités, actualités du club, galerie photo, et un espace de connexion " +
       "membres pour gérer les essais gratuits et l'inscription en ligne.",
     highlights: [
-      'Hero typographique massif avec accent orange identitaire',
+      "Hero typographique massif avec accent orange identitaire",
       "Cards d'horaires de séances avec icônes contextuelles",
-      'Espace membres authentifié (Se Connecter)',
+      "Espace membres authentifié (Se Connecter)",
       "Parcours d'essai gratuit en deux clics",
-      'Architecture multi-pages (Le Club, Activités, Actualités, Galerie, Rejoindre)',
+      "Architecture multi-pages (Le Club, Activités, Actualités, Galerie, Rejoindre)",
     ],
-    stack: ['Next.js', 'React', 'Tailwind CSS', 'Framer Motion', 'Authentification utilisateur', 'CMS pour les actualités'],
+    stack: [
+      'Next.js',
+      'React',
+      'Tailwind CSS',
+      'Framer Motion',
+      'Authentification utilisateur',
+      'CMS pour les actualités',
+    ],
   },
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // NEPTUNE — Lacanau Ocehand
+  // ───────────────────────────────────────────────────────────────────────────
   Neptune: {
     planet: 'Neptune',
     index: 4,
@@ -87,13 +123,20 @@ export const PROJECTS = {
       "licenciés (équipes, saison en cours, événements) et les futurs membres (rejoindre le club). " +
       "Intégration d'une passerelle vers le LBHX pour valoriser l'écosystème événementiel du club.",
     highlights: [
-      'Hero vidéo plein écran avec moment célébration Champions de France',
+      "Hero vidéo plein écran avec moment célébration Champions de France",
       "Badge identitaire Champions de France 2024 visible dès l'arrivée",
-      'Architecture saison-centrée (Saison 24-25 dédiée)',
-      'Cross-sell vers le LBHX (CTA Beach Xperience dans la nav)',
-      'Structure pensée pour la croissance du club (150+ licenciés, 9 équipes)',
+      "Architecture saison-centrée (Saison 24-25 dédiée)",
+      "Cross-sell vers le LBHX (CTA Beach Xperience dans la nav)",
+      "Structure pensée pour la croissance du club (150+ licenciés, 9 équipes)",
     ],
-    stack: ['Next.js', 'React', 'TypeScript', 'Tailwind CSS', 'Background vidéo optimisé', 'Vercel'],
+    stack: [
+      'Next.js',
+      'React',
+      'TypeScript',
+      'Tailwind CSS',
+      'Background vidéo optimisé',
+      'Vercel',
+    ],
   },
 }
 
