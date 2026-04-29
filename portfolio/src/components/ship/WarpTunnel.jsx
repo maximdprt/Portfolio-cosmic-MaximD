@@ -7,10 +7,10 @@ export default function WarpTunnel({ active, shipStateRef }) {
 
   useFrame(({ clock }) => {
     if (!ref.current) return
-    ref.current.visible = active
-    if (!active) return
-    ref.current.rotation.z = clock.elapsedTime * 0.45
     const ss = shipStateRef.current
+    ref.current.visible = active && Boolean(ss.boosting)
+    if (!ref.current.visible) return
+    ref.current.rotation.z = clock.elapsedTime * 0.45
     ref.current.position.set(ss.px, ss.py, ss.pz)
   })
 

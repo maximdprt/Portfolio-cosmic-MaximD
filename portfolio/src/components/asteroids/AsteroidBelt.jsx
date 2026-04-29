@@ -1,4 +1,3 @@
-import { InstancedRigidBodies } from '@react-three/rapier'
 import * as THREE from 'three'
 import { useMemo } from 'react'
 import { mkRng } from '../../utils/rng'
@@ -26,10 +25,9 @@ export default function AsteroidBelt({
       const y = (rand() * 2 - 1) * ySpread
       const id = Math.min(2, Math.floor(rand() * 3))
       out[id].push({
-        key: `a${seed}-${i}`,
         position: [center[0] + Math.cos(a) * r, center[1] + y, center[2] + Math.sin(a) * r],
         rotation: [rand() * Math.PI * 2, rand() * Math.PI * 2, rand() * Math.PI * 2],
-        scale: [1.2 + rand() * 5, 1.2 + rand() * 5, 1.2 + rand() * 5],
+        scale:    [1.2 + rand() * 5, 1.2 + rand() * 5, 1.2 + rand() * 5],
       })
     }
     return out
@@ -39,11 +37,24 @@ export default function AsteroidBelt({
 
   return (
     <group>
-      {groups.map((inst, idx) => inst.length > 0 && (
-        <InstancedRigidBodies key={`${seed}-${idx}`} instances={inst} type="fixed" colliders="ball">
-          <instancedMesh args={[geos[idx], mat, inst.length]} />
-        </InstancedRigidBodies>
-      ))}
+      {groups.map((inst, idx) => {
+        if (inst.length === 0) return null
+        const dummy = new THREE.Object3D()
+        const mesh = <instancedMesh key={idx} args={[geos[idx], mat, inst.length]}
+          ref={m => {
+            if (!m) return
+            inst.forEach((d, i) => {
+              dummy.position.set(...d.position)
+              dummy.rotation.set(...d.rotation)
+              dummy.scale.set(...d.scale)
+              dummy.updateMatrix()
+              m.setMatrixAt(i, dummy.matrix)
+            })
+            m.instanceMatrix.needsUpdate = true
+          }}
+        />
+        return mesh
+      })}
     </group>
   )
 }

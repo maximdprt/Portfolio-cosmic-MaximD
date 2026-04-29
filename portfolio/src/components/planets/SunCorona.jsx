@@ -1,4 +1,5 @@
 import { useFrame } from '@react-three/fiber'
+import { Billboard } from '@react-three/drei'
 import * as THREE from 'three'
 import { useMemo, useRef } from 'react'
 
@@ -20,9 +21,12 @@ export default function SunCorona({ radius }) {
         <primitive ref={ref} object={mat} attach="material" />
       </mesh>
       <mesh>
-        <sphereGeometry args={[radius * 1.55, 16, 16]} />
-        <meshBasicMaterial color="#ff5500" transparent opacity={0.03} blending={THREE.AdditiveBlending} depthWrite={false} />
+        <sphereGeometry args={[radius * 1.65, 16, 16]} />
+        <meshBasicMaterial color="#ff5500" transparent opacity={0.05} blending={THREE.AdditiveBlending} depthWrite={false} />
       </mesh>
+      <Billboard position={[radius * 2.1, radius * 0.2, 0]}><mesh><circleGeometry args={[radius * 0.08, 24]} /><meshBasicMaterial color="#ffd580" transparent opacity={0.12} blending={THREE.AdditiveBlending} depthWrite={false} /></mesh></Billboard>
+      <Billboard position={[-radius * 1.7, -radius * 0.3, radius * 0.4]}><mesh><circleGeometry args={[radius * 0.05, 24]} /><meshBasicMaterial color="#ffb355" transparent opacity={0.1} blending={THREE.AdditiveBlending} depthWrite={false} /></mesh></Billboard>
+      <Billboard position={[radius * 1.2, -radius * 0.5, -radius * 0.8]}><mesh><circleGeometry args={[radius * 0.03, 24]} /><meshBasicMaterial color="#ffddb0" transparent opacity={0.15} blending={THREE.AdditiveBlending} depthWrite={false} /></mesh></Billboard>
     </group>
   )
 }
