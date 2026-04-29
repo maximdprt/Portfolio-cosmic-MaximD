@@ -1,16 +1,8 @@
 {
-  "builds": [
-    {
-      "src": "portfolio/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
-  "routes": [
-    { "src": "/favicon\\.ico", "dest": "/favicon.svg" },
-    { "handle": "filesystem" },
-    { "src": "/(.*)", "dest": "/index.html" }
+  "installCommand": "cd portfolio && npm install",
+  "buildCommand": "cd portfolio && npm run build",
+  "outputDirectory": "portfolio/dist",
+  "rewrites": [
+    { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
